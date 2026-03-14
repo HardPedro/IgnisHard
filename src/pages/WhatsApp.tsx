@@ -321,17 +321,28 @@ export function WhatsApp() {
         await updateDoc(doc(db, 'whatsapp_conversations', selectedConv.id), {
           last_message_at: serverTimestamp()
         });
+        
+        isSendingRef.current = false;
+        setIsSending(false);
       } else {
         const errorData = await res.json();
         console.error('Failed to send message:', errorData);
-        alert(`Falha ao enviar mensagem. Detalhes: ${errorData.error}`);
+        isSendingRef.current = false;
+        setIsSending(false);
+        
+        // Use setTimeout to allow React to re-render and unblock the UI before the alert blocks the thread
+        setTimeout(() => {
+          alert(`Falha ao enviar mensagem. Detalhes: ${errorData.details || errorData.error}`);
+        }, 10);
       }
     } catch (err) {
       console.error('Error sending message', err);
-      alert('Erro de conexão ao enviar mensagem.');
-    } finally {
       isSendingRef.current = false;
       setIsSending(false);
+      
+      setTimeout(() => {
+        alert('Erro de conexão ao enviar mensagem.');
+      }, 10);
     }
   };
 
@@ -438,12 +449,15 @@ export function WhatsApp() {
         }
       }
       
-    } catch (error: any) {
-      console.error('Manual quote failed:', error);
-      alert(`Erro ao gerar pré-orçamento: ${error?.message || error}`);
-    } finally {
       isSendingRef.current = false;
       setIsSending(false);
+    } catch (error: any) {
+      console.error('Manual quote failed:', error);
+      isSendingRef.current = false;
+      setIsSending(false);
+      setTimeout(() => {
+        alert(`Erro ao gerar pré-orçamento: ${error?.message || error}`);
+      }, 10);
     }
   };
 
@@ -555,12 +569,15 @@ Histórico da conversa:
           }
         }
       }
-    } catch (error: any) {
-      console.error('Bot reply failed:', error);
-      alert(`Erro no bot: ${error?.message || error}`);
-    } finally {
       isSendingRef.current = false;
       setIsSending(false);
+    } catch (error: any) {
+      console.error('Bot reply failed:', error);
+      isSendingRef.current = false;
+      setIsSending(false);
+      setTimeout(() => {
+        alert(`Erro no bot: ${error?.message || error}`);
+      }, 10);
     }
   };
 
@@ -614,9 +631,28 @@ Histórico da conversa:
     }
   };
 
-  const formatTime = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
+  const formatTime = (timestamp: any) => {
+    if (!timestamp) return '';
+    
+    let date: Date;
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      // Firestore Timestamp
+      date = timestamp.toDate();
+    } else if (timestamp.seconds) {
+      // Firestore Timestamp raw object
+      date = new Date(timestamp.seconds * 1000);
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+      // String or Number
+      date = new Date(timestamp);
+    } else {
+      // Unresolved serverTimestamp or unknown object
+      date = new Date();
+    }
+    
+    if (isNaN(date.getTime())) return '';
+    
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
