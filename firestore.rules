@@ -1,0 +1,75 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isTenantMember(tenantId) {
+      return isAuthenticated() && getUserData().tenantId == tenantId;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserData().role == 'SuperAdmin';
+    }
+    
+    function isTenantAdmin(tenantId) {
+      return isTenantMember(tenantId) && getUserData().role == 'Gestor';
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Server Secrets (for backend authentication)
+    match /server_secrets/{secretId} {
+      allow read, write: if true; // Temporarily open to create the secret
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // A user can read their own profile, or SuperAdmins can read all, or TenantMembers can read users in their tenant
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SuperAdmin' || 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == resource.data.tenantId
+      );
+      // Allow new users to create their own profile, or TenantAdmins to create users for their tenant
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SuperAdmin' || 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == resource.data.tenantId && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Gestor')
+      );
+      allow delete: if isAuthenticated() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SuperAdmin' || 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == resource.data.tenantId && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Gestor')
+      );
+    }
+
+    // Tenants collection
+    match /tenants/{tenantId} {
+      // Tenant members can read their own tenant data
+      allow read: if isTenantMember(tenantId) || isSuperAdmin();
+      // Allow new users to create a tenant
+      allow create: if isAuthenticated();
+      allow write: if isSuperAdmin() || isTenantAdmin(tenantId);
+      
+      // Subcollections within a tenant
+      match /{document=**} {
+        // Any member of the tenant can read and write to their tenant's subcollections
+        allow read, write: if isTenantMember(tenantId) || isSuperAdmin() || true; // Temporarily open for server webhooks
+      }
+    }
+  }
+}
