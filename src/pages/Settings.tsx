@@ -13,6 +13,7 @@ export function Settings() {
   const [zapiInstanceId, setZapiInstanceId] = useState('');
   const [zapiToken, setZapiToken] = useState('');
   const [zapiClientToken, setZapiClientToken] = useState('');
+  const [zapiUrl, setZapiUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [generalSaveMessage, setGeneralSaveMessage] = useState('');
@@ -54,9 +55,11 @@ export function Settings() {
     const savedInstanceId = localStorage.getItem('zapi_instance_id') || '';
     const savedToken = localStorage.getItem('zapi_token') || '';
     const savedClientToken = localStorage.getItem('zapi_client_token') || '';
+    const savedUrl = localStorage.getItem('zapi_url') || '';
     setZapiInstanceId(savedInstanceId);
     setZapiToken(savedToken);
     setZapiClientToken(savedClientToken);
+    setZapiUrl(savedUrl);
     
     if (userData) {
       setUser(userData);
@@ -152,16 +155,22 @@ export function Settings() {
 
   const handleSaveDevSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userData?.tenantId) return;
+    if (!userData?.tenantId) {
+      setSaveMessage('Erro: Usuário não possui uma oficina (tenantId) vinculada.');
+      return;
+    }
     setIsSaving(true);
     
     // Save to localStorage for MVP purposes
     localStorage.setItem('zapi_instance_id', zapiInstanceId);
     localStorage.setItem('zapi_token', zapiToken);
     localStorage.setItem('zapi_client_token', zapiClientToken);
+    localStorage.setItem('zapi_url', zapiUrl);
     
     try {
       const finalInstanceId = zapiInstanceId.trim();
+      if (!finalInstanceId) throw new Error('ID da Instância é obrigatório.');
+      if (finalInstanceId.includes('/')) throw new Error('ID da Instância inválido. Use o campo "API da Instância" para colar a URL completa.');
       
       // Register the number in the backend so the webhook can find it
       await setDoc(doc(db, `whatsapp_numbers`, finalInstanceId), {
@@ -623,25 +632,47 @@ export function Settings() {
             <h2 className="text-xl font-semibold text-gray-900 mb-6">WhatsApp API (Z-API)</h2>
             <form onSubmit={handleSaveDevSettings} className="space-y-6 max-w-2xl">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ID da Instância</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">API da Instância (URL Completa)</label>
                 <input 
                   type="text" 
-                  value={zapiInstanceId}
-                  onChange={e => setZapiInstanceId(e.target.value)}
-                  placeholder="Ex: 3F00CCD5AE7541FFFB8086C84BA70"
+                  value={zapiUrl}
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    setZapiUrl(url);
+                    const match = url.match(/instances\/([^\/]+)\/token\/([^\/]+)/);
+                    if (match) {
+                      setZapiInstanceId(match[1]);
+                      setZapiToken(match[2].replace(/\/$/, '')); // Remove trailing slash if exists
+                    }
+                  }}
+                  placeholder="Ex: https://api.z-api.io/instances/3F00.../token/3199..."
                   className="block w-full border border-gray-300 rounded-xl shadow-sm py-3 px-4 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm transition-colors font-mono" 
                 />
+                <p className="text-xs text-gray-500 mt-1">Cole a URL completa aqui e nós extraímos o ID e o Token automaticamente.</p>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Token da Instância</label>
-                <input 
-                  type="password" 
-                  value={zapiToken}
-                  onChange={e => setZapiToken(e.target.value)}
-                  placeholder="Ex: 3199E688571927B4B2352F44"
-                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-3 px-4 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm transition-colors font-mono" 
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ID da Instância</label>
+                  <input 
+                    type="text" 
+                    value={zapiInstanceId}
+                    onChange={e => setZapiInstanceId(e.target.value)}
+                    readOnly
+                    className="block w-full bg-gray-50 border border-gray-300 rounded-xl shadow-sm py-3 px-4 focus:outline-none sm:text-sm text-gray-500 font-mono" 
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Token da Instância</label>
+                  <input 
+                    type="password" 
+                    value={zapiToken}
+                    onChange={e => setZapiToken(e.target.value)}
+                    readOnly
+                    className="block w-full bg-gray-50 border border-gray-300 rounded-xl shadow-sm py-3 px-4 focus:outline-none sm:text-sm text-gray-500 font-mono" 
+                  />
+                </div>
               </div>
 
               <div>
