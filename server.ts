@@ -16,7 +16,7 @@ function getStripe(): Stripe {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   // Stripe webhook needs raw body
   app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -68,25 +68,70 @@ async function startServer() {
   app.post('/webhooks/zapi', async (req, res) => {
     try {
       const data = req.body;
+      console.log('Z-API Webhook received event type:', data.type || 'unknown');
       
       // Z-API payload structure
       const instanceId = data.instanceId;
-      const phone = data.phone;
-      const text = data.text?.message || '';
-      const messageId = data.messageId;
-      const fromMe = data.fromMe;
-      const type = data.type;
       
-      if (!instanceId || !phone) {
-        return res.status(400).send('Missing required fields');
+      if (!instanceId) {
+        console.log('Webhook error: Missing instanceId');
+        return res.status(400).send('Missing instanceId');
       }
 
+      // 1. Ignore status updates (delivery, read receipts) if they come to this webhook
+      if (data.status && !data.messageId && !data.id) {
+        console.log('Ignoring status update event');
+        return res.status(200).send('OK');
+      }
+
+      // 2. Ignore events that are not messages (like connection status, presence, etc)
+      if (!data.phone || (!data.messageId && !data.id)) {
+        console.log('Ignoring non-message event from Z-API');
+        return res.status(200).send('OK'); // Always return 200 so Z-API doesn't retry
+      }
+
+      // 3. Ignore group messages (usually we only want 1-on-1 customer service)
+      if (data.isGroup || data.phone.includes('-')) {
+        console.log('Ignoring group message');
+        return res.status(200).send('OK');
+      }
+
+      const phone = data.phone;
+      const messageId = data.messageId || data.id;
+      const fromMe = data.fromMe || false;
+      const type = data.type?.toLowerCase() || 'other';
+      
+      // Extract text robustly based on message type
+      let text = '';
+      if (data.text && data.text.message) {
+        text = data.text.message;
+      } else if (typeof data.message === 'string') {
+        text = data.message;
+      } else if (type === 'audio') {
+        text = '🎵 Áudio recebido';
+      } else if (type === 'image') {
+        text = '📷 Imagem recebida';
+      } else if (type === 'document') {
+        text = '📄 Documento recebido';
+      } else if (type === 'video') {
+        text = '🎥 Vídeo recebido';
+      } else if (type === 'sticker') {
+        text = '🎫 Figurinha recebida';
+      } else if (type === 'location') {
+        text = '📍 Localização recebida';
+      } else if (type === 'contacts') {
+        text = '👤 Contato recebido';
+      } else {
+        text = `[Mensagem do tipo: ${type}]`;
+      }
+      
       // Find the whatsapp_number by instanceId
       const numbersRef = collection(db, 'whatsapp_numbers');
       const qNumber = query(numbersRef, where('instanceId', '==', instanceId));
       const numberSnap = await getDocs(qNumber);
       
       if (numberSnap.empty) {
+        console.log(`Webhook error: Instance ${instanceId} not found in database`);
         return res.status(404).send('Instance not found');
       }
       
@@ -107,22 +152,33 @@ async function startServer() {
           tenantId,
           whatsapp_number_id: waNumber.id,
           customer_phone: phone,
-          customer_name: data.senderName || phone,
+          customer_name: data.senderName || data.chatName || phone,
           last_message_at: serverTimestamp(),
           bot_active: true,
           status: 'open'
         });
         convId = newConv.id;
+        console.log(`Created new conversation: ${convId} for phone: ${phone}`);
       } else {
         convId = convSnap.docs[0].id;
         await updateDoc(doc(db, 'whatsapp_conversations', convId), {
           last_message_at: serverTimestamp(),
-          customer_name: data.senderName || convSnap.docs[0].data().customer_name
+          customer_name: data.senderName || data.chatName || convSnap.docs[0].data().customer_name
         });
+        console.log(`Updated conversation: ${convId} for phone: ${phone}`);
       }
       
-      // Save message
+      // Check if message already exists to prevent duplicates (Z-API sometimes retries)
       const messagesRef = collection(db, `whatsapp_conversations/${convId}/messages`);
+      const qMsg = query(messagesRef, where('wa_message_id', '==', messageId));
+      const msgSnap = await getDocs(qMsg);
+      
+      if (!msgSnap.empty) {
+        console.log(`Message ${messageId} already exists, ignoring duplicate.`);
+        return res.status(200).send('OK');
+      }
+
+      // Save message
       await addDoc(messagesRef, {
         tenantId,
         wa_message_id: messageId,
@@ -132,11 +188,13 @@ async function startServer() {
         status: fromMe ? 'sent' : 'received',
         timestamp: serverTimestamp()
       });
+      console.log(`Message saved successfully to conv ${convId}`);
 
       res.status(200).send('OK');
     } catch (error) {
       console.error('Z-API Webhook Error:', error);
-      res.status(500).send('Internal Server Error');
+      // Always return 200 to Z-API even on our internal errors so it doesn't keep retrying and blocking the queue
+      res.status(200).send('Internal Server Error Handled');
     }
   });
 
