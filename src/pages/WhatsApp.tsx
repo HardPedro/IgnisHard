@@ -299,7 +299,8 @@ export function WhatsApp() {
           type: 'text',
           text: content,
           instanceId: waNumber.instanceId,
-          token: waNumber.token
+          token: waNumber.token,
+          clientToken: waNumber.clientToken
         }),
       });
       
@@ -427,7 +428,8 @@ export function WhatsApp() {
               type: 'text',
               text: replyText,
               instanceId: waNumber.instanceId,
-              token: waNumber.token
+              token: waNumber.token,
+              clientToken: waNumber.clientToken
             }),
           });
           if (res.ok) {
@@ -548,7 +550,8 @@ Histórico da conversa:
               type: 'text',
               text: replyText,
               instanceId: waNumber.instanceId,
-              token: waNumber.token
+              token: waNumber.token,
+              clientToken: waNumber.clientToken
             }),
           });
           if (res.ok) {

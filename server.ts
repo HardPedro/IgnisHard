@@ -201,20 +201,23 @@ async function startServer() {
   // API to send WhatsApp message via Z-API
   app.post('/api/whatsapp/messages', async (req, res) => {
     try {
-      const { to, type, text, instanceId, token } = req.body;
+      const { to, type, text, instanceId, token, clientToken: bodyClientToken } = req.body;
       
       if (!to || !text || !instanceId || !token) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      // Fetch the Client-Token from the database
-      const numbersRef = collection(db, 'whatsapp_numbers');
-      const qNumber = query(numbersRef, where('instanceId', '==', instanceId));
-      const numberSnap = await getDocs(qNumber);
-      
-      let clientToken = '';
-      if (!numberSnap.empty && numberSnap.docs[0].data().clientToken) {
-        clientToken = numberSnap.docs[0].data().clientToken;
+      let clientToken = bodyClientToken || '';
+
+      // If not provided in body, try to fetch from database as fallback
+      if (!clientToken) {
+        const numbersRef = collection(db, 'whatsapp_numbers');
+        const qNumber = query(numbersRef, where('instanceId', '==', instanceId));
+        const numberSnap = await getDocs(qNumber);
+        
+        if (!numberSnap.empty && numberSnap.docs[0].data().clientToken) {
+          clientToken = numberSnap.docs[0].data().clientToken;
+        }
       }
 
       const zapiUrl = `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`;
