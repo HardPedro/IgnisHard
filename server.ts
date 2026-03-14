@@ -149,13 +149,23 @@ async function startServer() {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
+      // Fetch the Client-Token from the database
+      const numbersRef = collection(db, 'whatsapp_numbers');
+      const qNumber = query(numbersRef, where('instanceId', '==', instanceId));
+      const numberSnap = await getDocs(qNumber);
+      
+      let clientToken = 'F071285c5b3d64c23945c71b69f6d3388S'; // Fallback
+      if (!numberSnap.empty && numberSnap.docs[0].data().clientToken) {
+        clientToken = numberSnap.docs[0].data().clientToken;
+      }
+
       const zapiUrl = `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`;
       
       const response = await fetch(zapiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Client-Token': 'F071285c5b3d64c23945c71b69f6d3388S' // Example or environment variable
+          'Client-Token': clientToken
         },
         body: JSON.stringify({
           phone: to,

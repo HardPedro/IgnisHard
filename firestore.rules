@@ -71,5 +71,30 @@ service cloud.firestore {
         allow read, write: if isTenantMember(tenantId) || isSuperAdmin() || true; // Temporarily open for server webhooks
       }
     }
+
+    // Root collections for WhatsApp that need tenant isolation
+    match /whatsapp_numbers/{numberId} {
+      allow read, write: if isAuthenticated() && (
+        isSuperAdmin() || 
+        (request.resource == null || request.resource.data.tenantId == getUserData().tenantId) ||
+        (resource != null && resource.data.tenantId == getUserData().tenantId)
+      );
+    }
+
+    match /whatsapp_conversations/{convId} {
+      allow read, write: if isAuthenticated() && (
+        isSuperAdmin() || 
+        (request.resource == null || request.resource.data.tenantId == getUserData().tenantId) ||
+        (resource != null && resource.data.tenantId == getUserData().tenantId)
+      );
+      
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated() && (
+          isSuperAdmin() || 
+          (request.resource == null || request.resource.data.tenantId == getUserData().tenantId) ||
+          (resource != null && resource.data.tenantId == getUserData().tenantId)
+        );
+      }
+    }
   }
 }

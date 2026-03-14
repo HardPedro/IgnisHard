@@ -12,6 +12,7 @@ export function Settings() {
   const [isDevAreaOpen, setIsDevAreaOpen] = useState(false);
   const [zapiInstanceId, setZapiInstanceId] = useState('');
   const [zapiToken, setZapiToken] = useState('');
+  const [zapiClientToken, setZapiClientToken] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [generalSaveMessage, setGeneralSaveMessage] = useState('');
@@ -52,8 +53,10 @@ export function Settings() {
     // Load saved settings
     const savedInstanceId = localStorage.getItem('zapi_instance_id') || '';
     const savedToken = localStorage.getItem('zapi_token') || '';
+    const savedClientToken = localStorage.getItem('zapi_client_token') || '';
     setZapiInstanceId(savedInstanceId);
     setZapiToken(savedToken);
+    setZapiClientToken(savedClientToken);
     
     if (userData) {
       setUser(userData);
@@ -155,6 +158,7 @@ export function Settings() {
     // Save to localStorage for MVP purposes
     localStorage.setItem('zapi_instance_id', zapiInstanceId);
     localStorage.setItem('zapi_token', zapiToken);
+    localStorage.setItem('zapi_client_token', zapiClientToken);
     
     try {
       const finalInstanceId = zapiInstanceId.trim();
@@ -164,6 +168,7 @@ export function Settings() {
         tenantId: userData.tenantId,
         instanceId: finalInstanceId,
         token: zapiToken,
+        clientToken: zapiClientToken,
         phone_number: 'Z-API Instance',
         updatedAt: new Date().toISOString()
       });
@@ -618,24 +623,37 @@ export function Settings() {
             <h2 className="text-xl font-semibold text-gray-900 mb-6">WhatsApp API (Z-API)</h2>
             <form onSubmit={handleSaveDevSettings} className="space-y-6 max-w-2xl">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Z-API Instance ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ID da Instância</label>
                 <input 
                   type="text" 
                   value={zapiInstanceId}
                   onChange={e => setZapiInstanceId(e.target.value)}
-                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-3 px-4 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm transition-colors" 
+                  placeholder="Ex: 3F00CCD5AE7541FFFB8086C84BA70"
+                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-3 px-4 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm transition-colors font-mono" 
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Z-API Token</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Token da Instância</label>
                 <input 
                   type="password" 
                   value={zapiToken}
                   onChange={e => setZapiToken(e.target.value)}
-                  placeholder="Ex: 105923847561234"
-                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-3 px-4 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm transition-colors" 
+                  placeholder="Ex: 3199E688571927B4B2352F44"
+                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-3 px-4 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm transition-colors font-mono" 
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Token de Segurança (Client-Token)</label>
+                <input 
+                  type="password" 
+                  value={zapiClientToken}
+                  onChange={e => setZapiClientToken(e.target.value)}
+                  placeholder="Opcional, usado para enviar mensagens"
+                  className="block w-full border border-gray-300 rounded-xl shadow-sm py-3 px-4 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm transition-colors font-mono" 
+                />
+                <p className="text-xs text-gray-500 mt-1">Encontrado no painel da Z-API em Segurança {'>'} Token de Segurança.</p>
               </div>
 
               <div className="pt-4 flex flex-col sm:flex-row gap-4">
@@ -781,23 +799,34 @@ export function Settings() {
 
                 <form onSubmit={handleSaveDevSettings} className="space-y-6 max-w-2xl">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Z-API Instance ID</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">ID da Instância</label>
                     <input 
                       type="text" 
                       value={zapiInstanceId}
                       onChange={(e) => setZapiInstanceId(e.target.value)}
-                      placeholder="3B1234567890123"
+                      placeholder="Ex: 3F00CCD5AE7541FFFB8086C84BA70"
                       className="block w-full bg-gray-800 border border-gray-700 rounded-xl shadow-sm py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm transition-colors font-mono" 
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Z-API Token</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Token da Instância</label>
                     <input 
                       type="password" 
                       value={zapiToken}
                       onChange={(e) => setZapiToken(e.target.value)}
-                      placeholder="Token..."
+                      placeholder="Ex: 3199E688571927B4B2352F44"
+                      className="block w-full bg-gray-800 border border-gray-700 rounded-xl shadow-sm py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm transition-colors font-mono" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Token de Segurança (Client-Token)</label>
+                    <input 
+                      type="password" 
+                      value={zapiClientToken}
+                      onChange={(e) => setZapiClientToken(e.target.value)}
+                      placeholder="Opcional, usado para enviar mensagens"
                       className="block w-full bg-gray-800 border border-gray-700 rounded-xl shadow-sm py-3 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm transition-colors font-mono" 
                     />
                   </div>
