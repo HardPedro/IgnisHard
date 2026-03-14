@@ -212,19 +212,24 @@ async function startServer() {
       const qNumber = query(numbersRef, where('instanceId', '==', instanceId));
       const numberSnap = await getDocs(qNumber);
       
-      let clientToken = 'F071285c5b3d64c23945c71b69f6d3388S'; // Fallback
+      let clientToken = '';
       if (!numberSnap.empty && numberSnap.docs[0].data().clientToken) {
         clientToken = numberSnap.docs[0].data().clientToken;
       }
 
       const zapiUrl = `https://api.z-api.io/instances/${instanceId}/token/${token}/send-text`;
       
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (clientToken) {
+        headers['Client-Token'] = clientToken;
+      }
+
       const response = await fetch(zapiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Client-Token': clientToken
-        },
+        headers,
         body: JSON.stringify({
           phone: to,
           message: text
@@ -234,7 +239,7 @@ async function startServer() {
       if (!response.ok) {
         const errorData = await response.text();
         console.error('Z-API Send Error:', errorData);
-        return res.status(response.status).json({ error: 'Failed to send message via Z-API' });
+        return res.status(response.status).json({ error: 'Failed to send message via Z-API', details: errorData });
       }
 
       const data = await response.json();
