@@ -647,15 +647,6 @@ export function Settings() {
                   <Save className="mr-2 h-4 w-4" />
                   {isSaving ? 'Salvando...' : 'Salvar Configurações API'}
                 </button>
-                
-                <button 
-                  type="button" 
-                  onClick={handleRegister360Webhook}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-bold rounded-xl shadow-sm text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200"
-                >
-                  <Smartphone className="mr-2 h-4 w-4" />
-                  Configurar Webhook 360dialog
-                </button>
               </div>
               {saveMessage && (
                 <p className={`text-sm font-medium ${saveMessage.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>
@@ -663,6 +654,61 @@ export function Settings() {
                 </p>
               )}
             </form>
+          </div>
+
+          <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm mt-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">URLs de Webhook</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Copie as URLs abaixo e cole nas configurações do seu provedor (Z-API ou Stripe) para receber os eventos em tempo real.
+            </p>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Webhook do WhatsApp (Z-API)</label>
+                <div className="flex items-center">
+                  <input 
+                    type="text" 
+                    readOnly
+                    value={`${window.location.origin}/webhooks/zapi`}
+                    className="block w-full bg-gray-50 border border-gray-300 rounded-l-xl shadow-sm py-3 px-4 text-gray-600 focus:outline-none sm:text-sm font-mono" 
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/webhooks/zapi`);
+                      alert('URL do Z-API copiada para a área de transferência!');
+                    }}
+                    className="inline-flex items-center px-4 py-3 border border-l-0 border-gray-300 text-sm font-bold rounded-r-xl shadow-sm text-gray-700 bg-white hover:bg-gray-50 transition-all"
+                  >
+                    Copiar
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Configure esta URL na Z-API para receber as mensagens dos clientes.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Webhook de Pagamentos (Stripe)</label>
+                <div className="flex items-center">
+                  <input 
+                    type="text" 
+                    readOnly
+                    value={`${window.location.origin}/api/webhooks/stripe`}
+                    className="block w-full bg-gray-50 border border-gray-300 rounded-l-xl shadow-sm py-3 px-4 text-gray-600 focus:outline-none sm:text-sm font-mono" 
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/stripe`);
+                      alert('URL do Stripe copiada para a área de transferência!');
+                    }}
+                    className="inline-flex items-center px-4 py-3 border border-l-0 border-gray-300 text-sm font-bold rounded-r-xl shadow-sm text-gray-700 bg-white hover:bg-gray-50 transition-all"
+                  >
+                    Copiar
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Configure esta URL no painel do Stripe para receber atualizações de assinaturas.</p>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
