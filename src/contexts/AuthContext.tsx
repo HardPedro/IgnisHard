@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc } fro
 interface AuthContextType {
   currentUser: User | null;
   userData: any | null;
+  tenantData: any | null;
   isAuthReady: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -22,6 +23,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<any | null>(null);
+  const [tenantData, setTenantData] = useState<any | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
   useEffect(() => {
@@ -55,24 +57,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               await deleteDoc(doc(db, 'users', existingDoc.id));
               
               setUserData(existingData);
-            } else {
-              // New user, create tenant and user profile
-              const tenantId = 't-' + Date.now();
+            } else if (user.email === 'harddisk1911@gmail.com') {
+              // Auto-create SuperAdmin account
+              const tenantId = 't-superadmin';
               await setDoc(doc(db, 'tenants', tenantId), {
-                name: user.displayName || 'Minha Oficina',
-                plan: 'CORE',
+                name: 'Administração do Sistema',
+                plan: 'SuperAdmin',
                 createdAt: new Date().toISOString()
               });
               
               const newUserData = {
                 tenantId,
                 email: user.email,
-                name: user.displayName,
-                role: 'Gestor',
+                name: user.displayName || 'Super Admin',
+                role: 'SuperAdmin',
                 createdAt: new Date().toISOString()
               };
               await setDoc(doc(db, 'users', user.uid), newUserData);
               setUserData(newUserData);
+            } else {
+              // New user not found in pre-created list.
+              // We no longer auto-create tenants.
+              // The user must be invited by an admin.
+              setUserData({
+                unauthorized: true,
+                email: user.email,
+                name: user.displayName
+              });
             }
           }
         } catch (error) {
@@ -87,6 +98,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    const fetchTenant = async () => {
+      if (userData?.tenantId) {
+        try {
+          const tenantDoc = await getDoc(doc(db, 'tenants', userData.tenantId));
+          if (tenantDoc.exists()) {
+            setTenantData(tenantDoc.data());
+          }
+        } catch (error) {
+          console.error("Error fetching tenant data:", error);
+        }
+      } else {
+        setTenantData(null);
+      }
+    };
+    fetchTenant();
+  }, [userData?.tenantId]);
+
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     await signInWithPopup(auth, provider);
@@ -97,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, userData, isAuthReady, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ currentUser, userData, tenantData, isAuthReady, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

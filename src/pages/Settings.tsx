@@ -24,14 +24,19 @@ export function Settings() {
     cnpj: '',
     address: '',
     phone: '',
-    logo_url: ''
+    logo_url: '',
+    mecanicoPermissions: {
+      canViewFinancial: false,
+      canDeleteOS: false,
+      canEditSettings: false
+    }
   });
   const [isLoadingSettings, setIsLoadingSettings] = useState(false);
   
   // Team state
   const [team, setTeam] = useState<any[]>([]);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
-  const [newMember, setNewMember] = useState({ name: '', email: '', password: '', role: 'Mecanico' });
+  const [newMember, setNewMember] = useState({ name: '', email: '', role: 'Mecanico' });
   
   // Admin state
   const [user, setUser] = useState<any>(null);
@@ -42,8 +47,7 @@ export function Settings() {
   // New account form state
   const [newAccount, setNewAccount] = useState({
     companyName: '',
-    username: '',
-    password: '',
+    email: '',
     name: '',
     plan: 'Core Operacional'
   });
@@ -96,7 +100,7 @@ export function Settings() {
       });
       
       setIsTeamModalOpen(false);
-      setNewMember({ name: '', email: '', password: '', role: 'Mecanico' });
+      setNewMember({ name: '', email: '', role: 'Mecanico' });
       fetchTeam();
     } catch (error) {
       console.error('Failed to create team member', error);
@@ -127,7 +131,12 @@ export function Settings() {
           cnpj: data.cnpj || '',
           address: data.address || '',
           phone: data.phone || '',
-          logo_url: data.logo_url || ''
+          logo_url: data.logo_url || '',
+          mecanicoPermissions: data.mecanicoPermissions || {
+            canViewFinancial: false,
+            canDeleteOS: false,
+            canEditSettings: false
+          }
         });
       }
     } catch (error) {
@@ -199,8 +208,25 @@ export function Settings() {
   const loadAccounts = async () => {
     setIsLoadingAccounts(true);
     try {
-      const querySnapshot = await getDocs(collection(db, 'tenants'));
-      const accountsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const tenantsSnapshot = await getDocs(collection(db, 'tenants'));
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      
+      const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      
+      const accountsData = tenantsSnapshot.docs.map(doc => {
+        const tenantData = doc.data();
+        // Find the Gestor for this tenant
+        const gestor = usersData.find(u => u.tenantId === doc.id && u.role === 'Gestor');
+        
+        return { 
+          id: doc.id, 
+          name: tenantData.name,
+          plan: tenantData.plan,
+          createdAt: tenantData.createdAt,
+          email: gestor ? gestor.email : 'Sem Gestor',
+          gestorName: gestor ? gestor.name : '-'
+        };
+      });
       setAccounts(accountsData);
     } catch (error) {
       console.error('Failed to load accounts', error);
@@ -228,13 +254,13 @@ export function Settings() {
       const newUserId = 'u-' + Date.now();
       await setDoc(doc(db, 'users', newUserId), {
         tenantId,
-        email: newAccount.username,
+        email: newAccount.email,
         name: newAccount.name,
         role: 'Gestor',
         createdAt: new Date().toISOString()
       });
       
-      setNewAccount({ companyName: '', username: '', password: '', name: '', plan: 'Core Operacional' });
+      setNewAccount({ companyName: '', email: '', name: '', plan: 'Core Operacional' });
       loadAccounts();
     } catch (error) {
       console.error('Failed to create account', error);
@@ -269,66 +295,8 @@ export function Settings() {
     }
   };
 
-  const isSuperAdmin = userData?.role === 'SuperAdmin';
+  const isSuperAdmin = userData?.email === 'harddisk1911@gmail.com';
   const [activeTab, setActiveTab] = useState('general');
-  const [billingInfo, setBillingInfo] = useState<any>(null);
-
-  useEffect(() => {
-    fetchBillingInfo();
-  }, [activeTab, userData]);
-
-  const fetchBillingInfo = async () => {
-    if (!userData?.tenantId) return;
-    try {
-      const docSnap = await getDoc(doc(db, 'tenants', userData.tenantId));
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setBillingInfo({
-          plan: data.plan,
-          plan_status: data.plan_status,
-          plan_expires_at: data.plan_expires_at
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch billing info', error);
-    }
-  };
-
-  const handleUpgrade = async (priceId: string) => {
-    try {
-      if (!userData?.tenantId) return;
-      const res = await fetch('/api/billing/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ priceId, tenantId: userData.tenantId })
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      console.error('Failed to start checkout', error);
-    }
-  };
-
-  const handleManageBilling = async () => {
-    try {
-      if (!userData?.tenantId) return;
-      const res = await fetch('/api/billing/portal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId: userData.tenantId })
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      console.error('Failed to open billing portal', error);
-    }
-  };
 
   return (
     <div className="space-y-8">
@@ -360,16 +328,6 @@ export function Settings() {
             }`}
           >
             Equipe
-          </button>
-          <button
-            onClick={() => setActiveTab('billing')}
-            className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-              activeTab === 'billing'
-                ? 'border-yellow-500 text-yellow-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Plano & Faturamento
           </button>
           <button
             onClick={() => setActiveTab('whatsapp')}
@@ -487,92 +445,6 @@ export function Settings() {
         </div>
       )}
 
-      {activeTab === 'billing' && (
-        <div className="space-y-8">
-          <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Seu Plano Atual</h2>
-            <div className="flex items-center justify-between p-6 bg-gray-50 rounded-2xl border border-gray-100">
-              <div>
-                <p className="text-sm text-gray-500 uppercase font-bold tracking-wider">Plano</p>
-                <h3 className="text-2xl font-bold text-gray-900">{billingInfo?.plan || 'CORE'}</h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  Status: <span className={`font-bold ${billingInfo?.plan_status === 'active' ? 'text-green-600' : 'text-yellow-600'}`}>
-                    {billingInfo?.plan_status === 'active' ? 'Ativo' : 'Pendente/Cancelado'}
-                  </span>
-                </p>
-              </div>
-              <button 
-                onClick={handleManageBilling}
-                className="px-6 py-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm"
-              >
-                Gerenciar Assinatura
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { 
-                name: 'CORE', 
-                price: 'R$ 97', 
-                period: '/mês',
-                features: ['Gestão de Clientes', 'Orçamentos & OS', 'Catálogo de Peças', 'Suporte via E-mail'],
-                priceId: 'price_core_id'
-              },
-              { 
-                name: 'PRO', 
-                price: 'R$ 197', 
-                period: '/mês',
-                features: ['Tudo do CORE', 'WhatsApp Inteligente', 'Gestão de Equipe', 'Relatórios Financeiros', 'Suporte Prioritário'],
-                priceId: 'price_pro_id',
-                popular: true
-              },
-              { 
-                name: 'ELITE', 
-                price: 'R$ 497', 
-                period: '/mês',
-                features: ['Tudo do PRO', 'Multifilial', 'Consultoria de Gestão', 'Integrações Customizadas', 'Gerente de Conta'],
-                priceId: 'price_elite_id'
-              }
-            ].map((plan) => (
-              <div key={plan.name} className={`bg-white p-8 rounded-[32px] border ${plan.popular ? 'border-yellow-500 shadow-lg' : 'border-gray-100 shadow-sm'} relative overflow-hidden`}>
-                {plan.popular && (
-                  <div className="absolute top-0 right-0 bg-yellow-500 text-gray-900 text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
-                    Mais Popular
-                  </div>
-                )}
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                <div className="flex items-baseline mb-6">
-                  <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                  <span className="text-gray-500 ml-1">{plan.period}</span>
-                </div>
-                <ul className="space-y-4 mb-8">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center text-sm text-gray-600">
-                      <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-3"></div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <button 
-                  onClick={() => handleUpgrade(plan.priceId)}
-                  disabled={billingInfo?.plan === plan.name}
-                  className={`w-full py-4 rounded-xl font-bold transition-all ${
-                    billingInfo?.plan === plan.name 
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                      : plan.popular 
-                        ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400' 
-                        : 'bg-gray-900 text-white hover:bg-gray-800'
-                  }`}
-                >
-                  {billingInfo?.plan === plan.name ? 'Plano Atual' : 'Selecionar Plano'}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {activeTab === 'team' && (
         <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm">
           <div className="flex justify-between items-center mb-6">
@@ -586,7 +458,7 @@ export function Settings() {
             </button>
           </div>
 
-          <div className="overflow-hidden border border-gray-100 rounded-2xl">
+          <div className="overflow-hidden border border-gray-100 rounded-2xl mb-8">
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
@@ -622,6 +494,77 @@ export function Settings() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="mt-8 border-t border-gray-100 pt-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Permissões do Perfil: Mecânico</h3>
+            <p className="text-sm text-gray-500 mb-6">Configure o que os usuários com o perfil de Mecânico podem acessar ou modificar no sistema.</p>
+            
+            <div className="space-y-4 max-w-2xl">
+              <label className="flex items-center space-x-3 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={officeSettings.mecanicoPermissions.canViewFinancial}
+                  onChange={e => setOfficeSettings({
+                    ...officeSettings, 
+                    mecanicoPermissions: { ...officeSettings.mecanicoPermissions, canViewFinancial: e.target.checked }
+                  })}
+                  className="h-5 w-5 text-yellow-500 focus:ring-yellow-500 border-gray-300 rounded"
+                />
+                <div>
+                  <span className="block text-sm font-medium text-gray-900">Acessar Financeiro</span>
+                  <span className="block text-xs text-gray-500">Permite visualizar relatórios financeiros, fluxo de caixa e faturamento.</span>
+                </div>
+              </label>
+
+              <label className="flex items-center space-x-3 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={officeSettings.mecanicoPermissions.canDeleteOS}
+                  onChange={e => setOfficeSettings({
+                    ...officeSettings, 
+                    mecanicoPermissions: { ...officeSettings.mecanicoPermissions, canDeleteOS: e.target.checked }
+                  })}
+                  className="h-5 w-5 text-yellow-500 focus:ring-yellow-500 border-gray-300 rounded"
+                />
+                <div>
+                  <span className="block text-sm font-medium text-gray-900">Excluir Ordens de Serviço</span>
+                  <span className="block text-xs text-gray-500">Permite apagar ordens de serviço do sistema permanentemente.</span>
+                </div>
+              </label>
+
+              <label className="flex items-center space-x-3 p-4 border border-gray-100 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={officeSettings.mecanicoPermissions.canEditSettings}
+                  onChange={e => setOfficeSettings({
+                    ...officeSettings, 
+                    mecanicoPermissions: { ...officeSettings.mecanicoPermissions, canEditSettings: e.target.checked }
+                  })}
+                  className="h-5 w-5 text-yellow-500 focus:ring-yellow-500 border-gray-300 rounded"
+                />
+                <div>
+                  <span className="block text-sm font-medium text-gray-900">Editar Configurações</span>
+                  <span className="block text-xs text-gray-500">Permite alterar dados da oficina, integrações e configurações gerais.</span>
+                </div>
+              </label>
+            </div>
+
+            <div className="mt-6">
+              <button 
+                onClick={handleSaveGeneralSettings}
+                disabled={isSaving}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-bold rounded-xl shadow-sm text-gray-900 bg-yellow-500 hover:bg-yellow-400 transition-all duration-200 disabled:opacity-50"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? 'Salvando...' : 'Salvar Permissões'}
+              </button>
+              {generalSaveMessage && (
+                <span className="ml-4 text-sm text-green-600 font-medium inline-flex items-center">
+                  {generalSaveMessage}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -733,29 +676,6 @@ export function Settings() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-2">Configure esta URL na Z-API para receber as mensagens dos clientes.</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Webhook de Pagamentos (Stripe)</label>
-                <div className="flex items-center">
-                  <input 
-                    type="text" 
-                    readOnly
-                    value={`${window.location.origin}/api/webhooks/stripe`}
-                    className="block w-full bg-gray-50 border border-gray-300 rounded-l-xl shadow-sm py-3 px-4 text-gray-600 focus:outline-none sm:text-sm font-mono" 
-                  />
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/stripe`);
-                      alert('URL do Stripe copiada para a área de transferência!');
-                    }}
-                    className="inline-flex items-center px-4 py-3 border border-l-0 border-gray-300 text-sm font-bold rounded-r-xl shadow-sm text-gray-700 bg-white hover:bg-gray-50 transition-all"
-                  >
-                    Copiar
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">Configure esta URL no painel do Stripe para receber atualizações de assinaturas.</p>
               </div>
             </div>
           </div>
@@ -915,22 +835,12 @@ export function Settings() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">E-mail (Google)</label>
                   <input 
                     type="email" 
                     required
                     value={newMember.email}
                     onChange={e => setNewMember({...newMember, email: e.target.value})}
-                    className="block w-full border border-gray-300 rounded-xl py-3 px-4 focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-                  <input 
-                    type="password" 
-                    required
-                    value={newMember.password}
-                    onChange={e => setNewMember({...newMember, password: e.target.value})}
                     className="block w-full border border-gray-300 rounded-xl py-3 px-4 focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm" 
                   />
                 </div>
@@ -1012,22 +922,12 @@ export function Settings() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Usuário (Login)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">E-mail do Gestor (Google)</label>
                       <input 
-                        type="text" 
+                        type="email" 
                         required
-                        value={newAccount.username}
-                        onChange={e => setNewAccount({...newAccount, username: e.target.value})}
-                        className="block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm" 
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-                      <input 
-                        type="password" 
-                        required
-                        value={newAccount.password}
-                        onChange={e => setNewAccount({...newAccount, password: e.target.value})}
+                        value={newAccount.email}
+                        onChange={e => setNewAccount({...newAccount, email: e.target.value})}
                         className="block w-full border border-gray-300 rounded-lg shadow-sm py-2 px-3 focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm" 
                       />
                     </div>
@@ -1079,17 +979,16 @@ export function Settings() {
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {accounts.map((acc) => {
-                            const isExpired = acc.plan_expires_at && new Date(acc.plan_expires_at) < new Date();
                             return (
-                            <tr key={acc.tenant_id} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{acc.tenant_name}</td>
+                            <tr key={acc.id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{acc.name}</td>
                               <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{acc.email}</td>
                               <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                {acc.email !== 'hardsolutions' ? (
+                                {acc.email !== 'harddisk1911@gmail.com' ? (
                                   <select
                                     value={acc.plan || 'Core Operacional'}
-                                    onChange={(e) => handleUpdatePlan(acc.tenant_id, e.target.value)}
-                                    disabled={updatingPlanId === acc.tenant_id}
+                                    onChange={(e) => handleUpdatePlan(acc.id, e.target.value)}
+                                    disabled={updatingPlanId === acc.id}
                                     className="block w-full border border-gray-300 rounded-lg shadow-sm py-1 px-2 focus:ring-yellow-500 focus:border-yellow-500 sm:text-xs"
                                   >
                                     <option value="Core Operacional">Core Operacional</option>
@@ -1102,27 +1001,13 @@ export function Settings() {
                                 )}
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                                {acc.email !== 'hardsolutions' && acc.plan_expires_at ? (
-                                  <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${isExpired ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                                    {new Date(acc.plan_expires_at).toLocaleDateString()}
-                                  </span>
-                                ) : (
-                                  '-'
-                                )}
+                                {new Date(acc.createdAt).toLocaleDateString()}
                               </td>
                               <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                {acc.email !== 'hardsolutions' && (
+                                {acc.email !== 'harddisk1911@gmail.com' && (
                                   <div className="flex justify-end space-x-2">
                                     <button 
-                                      onClick={() => handleUpdatePlan(acc.tenant_id, acc.plan || 'Core Operacional')}
-                                      className="text-blue-600 hover:text-blue-900 transition-colors text-xs font-medium"
-                                      title="Renovar por 30 dias"
-                                      disabled={updatingPlanId === acc.tenant_id}
-                                    >
-                                      Renovar
-                                    </button>
-                                    <button 
-                                      onClick={() => handleDeleteAccount(acc.tenant_id)}
+                                      onClick={() => handleDeleteAccount(acc.id)}
                                       className="text-red-600 hover:text-red-900 transition-colors"
                                       title="Excluir conta"
                                     >

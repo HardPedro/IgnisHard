@@ -18,9 +18,9 @@ export function LandingPage() {
               <a href="#features" className="text-sm font-medium hover:text-yellow-500 transition-colors">Funcionalidades</a>
               <a href="#pricing" className="text-sm font-medium hover:text-yellow-500 transition-colors">Preços</a>
               <Link to="/login" className="text-sm font-medium hover:text-yellow-500 transition-colors">Entrar</Link>
-              <Link to="/login" className="bg-gray-900 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-gray-800 transition-all">
-                Começar Agora
-              </Link>
+              <a href="mailto:contato@oficinapro.com" className="bg-gray-900 text-white px-6 py-2.5 rounded-full text-sm font-bold hover:bg-gray-800 transition-all">
+                Solicitar Acesso
+              </a>
             </div>
           </div>
         </div>
@@ -47,12 +47,12 @@ export function LandingPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link to="/login" className="bg-gray-900 text-white px-8 py-4 rounded-2xl text-lg font-bold hover:bg-gray-800 transition-all flex items-center justify-center group">
-                  Teste Grátis por 14 dias
+                  Acessar Sistema
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link to="/login" className="bg-white border-2 border-gray-200 px-8 py-4 rounded-2xl text-lg font-bold hover:border-gray-900 transition-all flex items-center justify-center">
-                  Ver Demonstração
-                </Link>
+                <a href="#pricing" className="bg-white border-2 border-gray-200 px-8 py-4 rounded-2xl text-lg font-bold hover:border-gray-900 transition-all flex items-center justify-center">
+                  Ver Planos
+                </a>
               </div>
               <div className="mt-10 flex items-center space-x-4">
                 <div className="flex -space-x-2">
@@ -155,9 +155,9 @@ export function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link to="/login" className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center ${plan.popular ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400' : 'bg-gray-900 text-white hover:bg-gray-800'}`}>
-                  Começar Agora
-                </Link>
+                <a href="mailto:contato@oficinapro.com" className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center ${plan.popular ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400' : 'bg-gray-900 text-white hover:bg-gray-800'}`}>
+                  Falar com Consultor
+                </a>
               </div>
             ))}
           </div>
@@ -174,10 +174,10 @@ export function LandingPage() {
             </div>
             <h2 className="text-5xl font-black tracking-tighter mb-8 relative z-10">Pronto para levar sua oficina ao <span className="text-yellow-500 italic">próximo nível?</span></h2>
             <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto relative z-10">Junte-se a centenas de oficinas que já automatizaram seus processos e aumentaram seus lucros.</p>
-            <Link to="/login" className="inline-flex items-center px-10 py-5 bg-yellow-500 text-gray-900 rounded-2xl text-xl font-black hover:bg-yellow-400 transition-all relative z-10">
-              Começar Teste Grátis
+            <a href="mailto:contato@oficinapro.com" className="inline-flex items-center px-10 py-5 bg-yellow-500 text-gray-900 rounded-2xl text-xl font-black hover:bg-yellow-400 transition-all relative z-10">
+              Falar com um Consultor
               <ArrowRight className="ml-3 h-6 w-6" />
-            </Link>
+            </a>
           </div>
         </div>
       </section>

@@ -3,66 +3,12 @@ import { createServer as createViteServer } from 'vite';
 import { db } from './server/firebase.js';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp } from 'firebase/firestore';
 import path from 'path';
-import Stripe from 'stripe';
-
-let stripeClient: Stripe | null = null;
-function getStripe(): Stripe {
-  if (!stripeClient) {
-    const key = process.env.STRIPE_SECRET_KEY || 'sk_test_dummy';
-    stripeClient = new Stripe(key, { apiVersion: '2026-02-25.clover' });
-  }
-  return stripeClient;
-}
 
 async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
 
-  // Stripe webhook needs raw body
-  app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
-    // Implement Stripe webhook logic here if needed
-    res.json({ received: true });
-  });
-
   app.use(express.json());
-
-  app.post('/api/billing/checkout', async (req, res) => {
-    try {
-      const { priceId, tenantId } = req.body;
-      if (!tenantId) return res.status(400).json({ error: 'Missing tenantId' });
-
-      const stripe = getStripe();
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [{ price: priceId, quantity: 1 }],
-        mode: 'subscription',
-        success_url: `${req.protocol}://${req.get('host')}/settings?success=true`,
-        cancel_url: `${req.protocol}://${req.get('host')}/settings?canceled=true`,
-        client_reference_id: tenantId,
-      });
-
-      res.json({ url: session.url });
-    } catch (error: any) {
-      console.error('Checkout error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post('/api/billing/portal', async (req, res) => {
-    try {
-      const { tenantId } = req.body;
-      if (!tenantId) return res.status(400).json({ error: 'Missing tenantId' });
-
-      // In a real app, you would look up the Stripe Customer ID for this tenant
-      // For now, we'll just return an error or a dummy URL if no customer ID exists
-      // const customerId = getStripeCustomerIdForTenant(tenantId);
-      
-      res.status(400).json({ error: 'Portal not configured yet' });
-    } catch (error: any) {
-      console.error('Portal error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   // Z-API Webhook for incoming messages
   app.post('/webhooks/zapi', async (req, res) => {

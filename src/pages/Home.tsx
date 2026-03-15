@@ -11,44 +11,57 @@ import {
   Settings,
   DollarSign
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export function Home() {
+  const { userData, tenantData } = useAuth();
+  
+  const isGestor = userData?.role === 'Gestor' || userData?.role === 'SuperAdmin';
+  const mecanicoPermissions = tenantData?.mecanicoPermissions || {
+    canViewFinancial: false,
+    canDeleteOS: false,
+    canEditSettings: false
+  };
+
   const categories = [
     {
       title: 'CADASTROS',
       items: [
-        { path: '/vehicles', label: 'Carros', desc: 'Gerenciar veículos', icon: Car, color: 'bg-purple-500' },
-        { path: '/catalog', label: 'Produtos', desc: 'Produtos e serviços', icon: Package, color: 'bg-cyan-500' },
-        { path: '/customers', label: 'Clientes', desc: 'Cadastro de clientes', icon: Users, color: 'bg-blue-400' },
+        { path: '/vehicles', label: 'Carros', desc: 'Gerenciar veículos', icon: Car, color: 'bg-purple-500', show: true },
+        { path: '/catalog', label: 'Produtos', desc: 'Produtos e serviços', icon: Package, color: 'bg-cyan-500', show: true },
+        { path: '/customers', label: 'Clientes', desc: 'Cadastro de clientes', icon: Users, color: 'bg-blue-400', show: true },
       ]
     },
     {
       title: 'VENDAS & LEADS',
       items: [
-        { path: '/quotes', label: 'Orçamentos', desc: 'Gerenciar orçamentos', icon: FileText, color: 'bg-emerald-500' },
-        { path: '/whatsapp', label: 'Central Inteligente', desc: 'Atendimento via WhatsApp', icon: MessageSquare, color: 'bg-blue-500' },
+        { path: '/quotes', label: 'Orçamentos', desc: 'Gerenciar orçamentos', icon: FileText, color: 'bg-emerald-500', show: true },
+        { path: '/whatsapp', label: 'Central Inteligente', desc: 'Atendimento via WhatsApp', icon: MessageSquare, color: 'bg-blue-500', show: true },
       ]
     },
     {
       title: 'GESTÃO',
       items: [
-        { path: '/dashboard', label: 'Painel do Gestor', desc: 'Métricas e relatórios', icon: HomeIcon, color: 'bg-pink-500' },
-        { path: '/financial', label: 'Financeiro', desc: 'Controle de caixa e lucros', icon: DollarSign, color: 'bg-yellow-500' },
+        { path: '/dashboard', label: 'Painel do Gestor', desc: 'Métricas e relatórios', icon: HomeIcon, color: 'bg-pink-500', show: isGestor },
+        { path: '/financial', label: 'Financeiro', desc: 'Controle de caixa e lucros', icon: DollarSign, color: 'bg-yellow-500', show: isGestor || mecanicoPermissions.canViewFinancial },
       ]
     },
     {
       title: 'SERVIÇOS',
       items: [
-        { path: '/work-orders', label: 'Manutenções', desc: 'Revisões e reparos', icon: Wrench, color: 'bg-cyan-500' },
+        { path: '/work-orders', label: 'Manutenções', desc: 'Revisões e reparos', icon: Wrench, color: 'bg-cyan-500', show: true },
       ]
     },
     {
       title: 'OUTROS',
       items: [
-        { path: '/settings', label: 'Configurações', desc: 'Ajustes do sistema', icon: Settings, color: 'bg-teal-500' },
+        { path: '/settings', label: 'Configurações', desc: 'Ajustes do sistema', icon: Settings, color: 'bg-teal-500', show: isGestor || mecanicoPermissions.canEditSettings },
       ]
     }
-  ];
+  ].map(category => ({
+    ...category,
+    items: category.items.filter(item => item.show)
+  })).filter(category => category.items.length > 0);
 
   return (
     <div className="h-full flex flex-col max-w-7xl mx-auto">
